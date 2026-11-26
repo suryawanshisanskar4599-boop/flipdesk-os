@@ -53,6 +53,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flipdesk.core.design.components.FluxGlassCard
 import com.flipdesk.core.design.theme.FluxTheme
@@ -62,6 +63,7 @@ import com.flipdesk.core.permissions.SupportLevel
 import com.flipdesk.features.customization.CustomizationStudioScreen
 import com.flipdesk.features.foldstate.DevicePosture
 import com.flipdesk.features.foldstate.FoldStateTracker
+import com.flipdesk.os.service.CoverOverlayService
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -90,9 +92,11 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(settings.autoActivateOnFold) {
-                foldStateTracker.observePosture(this@MainActivity).collect { snapshot ->
-                    if (settings.autoActivateOnFold && snapshot.posture == DevicePosture.FOLDED_COVER_ACTIVE) {
-                        viewModel.launchCoverScreen()
+                runCatching {
+                    foldStateTracker.observePosture(this@MainActivity).collect { snapshot ->
+                        if (settings.autoActivateOnFold && snapshot.posture == DevicePosture.FOLDED_COVER_ACTIVE) {
+                            viewModel.launchCoverScreen()
+                        }
                     }
                 }
             }
@@ -132,7 +136,22 @@ class MainActivity : ComponentActivity() {
                                 aodClockEnabled = settings.aodClockEnabled,
                                 onToggleAutoActivate = viewModel::updateAutoActivateOnFold,
                                 onToggleAod = viewModel::updateAodClockEnabled,
-                                onLaunchCover = viewModel::launchCoverScreen
+                                onLaunchCover = viewModel::launchCoverScreen,
+                                onStartCoverOverlay = {
+                                    if (!Settings.canDrawOverlays(this@MainActivity)) {
+                                        startActivity(
+                                            Intent(
+                                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                Uri.parse("package:$packageName")
+                                            )
+                                        )
+                                    } else {
+                                        ContextCompat.startForegroundService(
+                                            this@MainActivity,
+                                            Intent(this@MainActivity, CoverOverlayService::class.java)
+                                        )
+                                    }
+                                }
                             )
                             1 -> CustomizationStudioScreen(
                                 config = settings.themeConfig,
@@ -166,9 +185,12 @@ private fun CompanionDashboardTab(
     aodClockEnabled: Boolean,
     onToggleAutoActivate: (Boolean) -> Unit,
     onToggleAod: (Boolean) -> Unit,
-    onLaunchCover: () -> Unit
+    onLaunchCover: () -> Unit,
+    onStartCoverOverlay: () -> Unit
 ) {
     val colors = FluxThemeTokens.colors
+    val context = LocalContext.current
+    val overlayGranted = Settings.canDrawOverlays(context)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -185,14 +207,17 @@ private fun CompanionDashboardTab(
 
         FluxGlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Cover Screen Launcher", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Outer Cover Screen (OPPO Find N3 Flip)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Text(
-                    "Launch FlipDesk Cover OS directly onto the external cover display (or preview in 382×720 mode).",
+                    "ColorOS restricts sideloaded apps from the built-in Mini Apps list. Enable Cover Overlay Service to render FlipDesk OS directly on your outer screen when folded.",
                     color = colors.textSecondary,
                     fontSize = 12.sp
                 )
-                Button(onClick = onLaunchCover, modifier = Modifier.fillMaxWidth()) {
-                    Text("Launch FlipDesk Cover OS")
+                Button(onClick = onStartCoverOverlay, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (overlayGranted) "Start Cover Screen Overlay Service" else "Grant Overlay Permission for Outer Screen")
+                }
+                OutlinedButton(onClick = onLaunchCover, modifier = Modifier.fillMaxWidth()) {
+                    Text("Preview Cover OS Now")
                 }
             }
         }

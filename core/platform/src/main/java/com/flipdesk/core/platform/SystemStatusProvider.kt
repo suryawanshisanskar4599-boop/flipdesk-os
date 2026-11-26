@@ -12,6 +12,7 @@ import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Environment
 import android.os.StatFs
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -45,17 +46,26 @@ class SystemStatusProvider @Inject constructor(
         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
             status == BatteryManager.BATTERY_STATUS_FULL
 
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val activeNet = cm.activeNetwork
-        val caps = cm.getNetworkCapabilities(activeNet)
-        val wifiConnected = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        val cellularConnected = caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
+        val wifiConnected = runCatching {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+            caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }.getOrDefault(false)
+        val cellularConnected = runCatching {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+            caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
+        }.getOrDefault(false)
 
-        val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-        val wifiEnabled = wm?.isWifiEnabled == true
+        val wifiEnabled = runCatching {
+            val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            wm?.isWifiEnabled == true
+        }.getOrDefault(false)
 
-        val bm = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-        val btEnabled = bm?.adapter?.isEnabled == true
+        val btEnabled = runCatching {
+            val bm = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            bm?.adapter?.isEnabled == true
+        }.getOrDefault(false)
 
         val statFs = StatFs(Environment.getDataDirectory().path)
         val totalStorage = statFs.totalBytes / (1024f * 1024f * 1024f)
@@ -93,8 +103,13 @@ class SystemStatusProvider @Inject constructor(
             addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
         }
-        context.registerReceiver(receiver, filter)
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_EXPORTED
+        )
         trySend(currentSnapshot())
-        awaitClose { context.unregisterReceiver(receiver) }
+        awaitClose { runCatching { context.unregisterReceiver(receiver) } }
     }
 }
