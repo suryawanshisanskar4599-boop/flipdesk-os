@@ -1,0 +1,3 @@
+-keep class com.flipdesk.** { *; }
+-keepattributes *Annotation*
+-dontwarn kotlinx.serialization.**

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FlipDesk OS</string>
+    <string name="tile_label">FlipDesk Cover</string>
+    <string name="accessibility_service_description">Optional fold-state and cover-screen launch helper for FlipDesk OS. Does not read screen content or passwords.</string>
+</resources>
