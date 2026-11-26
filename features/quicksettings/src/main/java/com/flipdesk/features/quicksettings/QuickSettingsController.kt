@@ -118,20 +118,24 @@ class QuickSettingsController @Inject constructor(
     }
 
     private fun readInitialState(): QuickSettingsState {
-        val dnd = notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        val dnd = runCatching {
+            notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        }.getOrDefault(false)
         val rot = runCatching {
             Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION, 1) == 1
         }.getOrDefault(true)
         val bright = runCatching {
             Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 150) / 255f
         }.getOrDefault(0.6f)
+        val ringer = runCatching { audioManager.ringerMode }.getOrDefault(AudioManager.RINGER_MODE_NORMAL)
+        val saver = runCatching { powerManager.isPowerSaveMode }.getOrDefault(false)
         return QuickSettingsState(
             flashlightOn = false,
             dndEnabled = dnd,
-            ringerMode = audioManager.ringerMode,
+            ringerMode = ringer,
             autoRotateEnabled = rot,
             brightness = bright,
-            batterySaverOn = powerManager.isPowerSaveMode
+            batterySaverOn = saver
         )
     }
 }

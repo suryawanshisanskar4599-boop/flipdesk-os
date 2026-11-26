@@ -89,20 +89,26 @@ class FlipDeskViewModel @Inject constructor(
     init {
         refreshApps()
         refreshCapabilities()
-        refreshMedia()
+        runCatching { refreshMedia() }
     }
 
     fun refreshApps() {
         viewModelScope.launch {
-            _installedApps.value = appRepository.loadInstalledApps()
+            runCatching {
+                _installedApps.value = appRepository.loadInstalledApps()
+            }
         }
     }
 
     fun refreshCapabilities() {
-        _capabilityReport.value = capabilityProbe.probe(
-            notificationListenerComponent = ComponentName(context, FlipDeskNotificationListenerService::class.java),
-            accessibilityComponent = ComponentName(context, FlipDeskAccessibilityService::class.java)
-        )
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                _capabilityReport.value = capabilityProbe.probe(
+                    notificationListenerComponent = ComponentName(context, FlipDeskNotificationListenerService::class.java),
+                    accessibilityComponent = ComponentName(context, FlipDeskAccessibilityService::class.java)
+                )
+            }
+        }
     }
 
     fun refreshMedia() {
