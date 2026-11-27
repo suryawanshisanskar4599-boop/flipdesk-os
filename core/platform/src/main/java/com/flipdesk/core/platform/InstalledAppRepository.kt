@@ -1,10 +1,14 @@
 package com.flipdesk.core.platform
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.LruCache
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,7 +48,8 @@ class InstalledAppRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val coverDisplayManager: CoverDisplayManager
 ) {
-    private val iconCache = LruCache<String, Drawable>(120)
+    private val iconCache = LruCache<String, Drawable>(200)
+    private val bitmapCache = LruCache<String, Bitmap>(200)
 
     private val knownMiniAppFriendlyPackages = setOf(
         "com.whatsapp",
@@ -65,7 +70,7 @@ class InstalledAppRepository @Inject constructor(
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val resolveInfos = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
 
-        resolveInfos
+        val apps = resolveInfos
             .distinctBy { it.activityInfo.packageName }
             .filter { it.activityInfo.packageName != context.packageName }
             .map { ri ->
@@ -74,6 +79,14 @@ class InstalledAppRepository @Inject constructor(
                 val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 val label = ri.loadLabel(pm)?.toString().orEmpty().ifBlank { pkg }
                 val compat = evaluateCompatibility(pkg, ri.activityInfo)
+                // Pre-warm bitmap cache off the main thread for 60fps drawer scrolling
+                if (bitmapCache.get(pkg) == null) {
+                    runCatching {
+                        val d = ri.loadIcon(pm)
+                        iconCache.put(pkg, d)
+                        d.toCachedBitmap()?.let { bitmapCache.put(pkg, it) }
+                    }
+                }
                 InstalledAppInfo(
                     packageName = pkg,
                     label = label,
@@ -82,6 +95,7 @@ class InstalledAppRepository @Inject constructor(
                 )
             }
             .sortedBy { it.label.lowercase() }
+        apps
     }
 
     fun getAppIcon(packageName: String): Drawable? {
@@ -93,10 +107,32 @@ class InstalledAppRepository @Inject constructor(
         }.getOrNull()
     }
 
+    fun getAppBitmap(packageName: String): Bitmap? {
+        bitmapCache.get(packageName)?.let { return it }
+        val bmp = getAppIcon(packageName)?.toCachedBitmap() ?: return null
+        bitmapCache.put(packageName, bmp)
+        return bmp
+    }
+
     fun launchApp(packageName: String): CoverDisplayManager.LaunchResult {
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
-            ?: return CoverDisplayManager.LaunchResult.FAILED("No launcher activity found for $packageName")
-        return coverDisplayManager.launchOnCoverOrFallback(launchIntent)
+        val pm = context.packageManager
+        var launchIntent = pm.getLaunchIntentForPackage(packageName)
+        if (launchIntent == null) {
+            val queryIntent = Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .setPackage(packageName)
+            val resolved = pm.queryIntentActivities(queryIntent, 0).firstOrNull()
+            if (resolved != null) {
+                launchIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    component = ComponentName(resolved.activityInfo.packageName, resolved.activityInfo.name)
+                }
+            }
+        }
+        if (launchIntent == null) {
+            return CoverDisplayManager.LaunchResult.FAILED("No launcher activity found for $packageName")
+        }
+        return coverDisplayManager.launchOnCoverOrFallback(launchIntent, preferCoverDisplay = true)
     }
 
     private fun evaluateCompatibility(packageName: String, activityInfo: ActivityInfo): AppCoverCompatibility {
@@ -115,4 +151,15 @@ class InstalledAppRepository @Inject constructor(
             AppCoverCompatibility.MAIN_DISPLAY_FALLBACK
         }
     }
+
+    private fun Drawable.toCachedBitmap(): Bitmap? = runCatching {
+        if (this is BitmapDrawable && bitmap != null) return bitmap
+        val w = intrinsicWidth.coerceIn(1, 144)
+        val h = intrinsicHeight.coerceIn(1, 144)
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        setBounds(0, 0, canvas.width, canvas.height)
+        draw(canvas)
+        bmp
+    }.getOrNull()
 }

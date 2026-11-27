@@ -190,7 +190,10 @@ class CoverOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, 
                             onRemoveWidget = { id -> serviceScope.launch { widgetRepository.removeWidget(id) } },
                             onResizeWidget = { e, s -> serviceScope.launch { widgetRepository.resizeWidget(e, s) } },
                             onMoveWidget = { e, d -> serviceScope.launch { widgetRepository.moveWidget(e, d) } },
-                            onLaunchApp = { app -> appRepository.launchApp(app.packageName) },
+                            onLaunchApp = { app ->
+                                removeOverlay()
+                                appRepository.launchApp(app.packageName)
+                            },
                             onToggleFavoriteApp = { pkg ->
                                 serviceScope.launch {
                                     val cur = appPrefs[pkg] ?: com.flipdesk.core.database.entity.AppPreferenceEntity(pkg)
@@ -212,14 +215,17 @@ class CoverOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner, 
                             onMediaSeek = musicController::seekTo,
                             onSwitchMediaSession = musicController::cycleSession,
                             onOpenQuickCamera = {
+                                removeOverlay()
                                 val i = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
                                 coverDisplayManager.launchOnCoverOrFallback(i)
                             },
                             onOpenVoiceRecorder = {
+                                removeOverlay()
                                 val i = Intent(android.provider.MediaStore.Audio.Media.RECORD_SOUND_ACTION)
                                 coverDisplayManager.launchOnCoverOrFallback(i)
                             },
                             onOpenCustomization = {
+                                removeOverlay()
                                 startActivity(Intent(this@CoverOverlayService, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                             }
                         )

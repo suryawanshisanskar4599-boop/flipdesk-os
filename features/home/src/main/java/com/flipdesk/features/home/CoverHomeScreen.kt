@@ -326,21 +326,44 @@ fun CoverHomeScreen(
                         }
                     }
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = onOpenQuickCamera, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Rounded.CameraAlt, contentDescription = "Camera", tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x38FFFFFF))
+                                .clickable { showAppDrawer = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.Apps, contentDescription = "Apps", tint = Color.White, modifier = Modifier.size(19.dp))
                         }
-                        IconButton(onClick = { showAppDrawer = true }, modifier = Modifier.size(34.dp)) {
-                            Icon(Icons.Rounded.Apps, contentDescription = "Apps", tint = colors.textPrimary, modifier = Modifier.size(20.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(Color(0x28FFFFFF))
+                                .clickable { onOpenCustomization() }
+                                .padding(horizontal = 14.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Icon(Icons.Rounded.Tune, contentDescription = "Studio", tint = colors.accent, modifier = Modifier.size(14.dp))
+                                Text("Flux", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
                         }
-                        IconButton(onClick = onOpenVoiceRecorder, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Rounded.Mic, contentDescription = "Voice Note", tint = colors.textSecondary, modifier = Modifier.size(18.dp))
-                        }
-                        IconButton(onClick = onOpenCustomization, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Rounded.Tune, contentDescription = "Studio", tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x38FFFFFF))
+                                .clickable { onOpenQuickCamera() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.CameraAlt, contentDescription = "Camera", tint = Color.White, modifier = Modifier.size(19.dp))
                         }
                     }
                     Box(

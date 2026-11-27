@@ -198,25 +198,39 @@ private fun CompanionDashboardTab(
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("FlipDesk OS", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("FlipDesk OS", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         Text(
-            "FLUX Cover Operating Environment for OPPO Find N3 Flip (3.26\" • 720×382)",
+            "FLUX Cover OS • OPPO Find N3 Flip (3.26\" AMOLED)",
             color = colors.textSecondary,
             fontSize = 13.sp
         )
 
         FluxGlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Outer Cover Screen (OPPO Find N3 Flip)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Outer Cover Screen", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
                 Text(
-                    "ColorOS restricts sideloaded apps from the built-in Mini Apps list. Enable Cover Overlay Service to render FlipDesk OS directly on your outer screen when folded.",
+                    if (overlayGranted)
+                        "Overlay permission is active. Start the service, then fold your phone to use FlipDesk Cover OS on the outer display."
+                    else
+                        "Grant Display Over Other Apps so FlipDesk OS can render directly on your outer screen when folded.",
                     color = colors.textSecondary,
                     fontSize = 12.sp
                 )
-                Button(onClick = onStartCoverOverlay, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (overlayGranted) "Start Cover Screen Overlay Service" else "Grant Overlay Permission for Outer Screen")
+                Button(
+                    onClick = onStartCoverOverlay,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.fillMaxWidth().height(46.dp)
+                ) {
+                    Text(
+                        if (overlayGranted) "Start Cover Screen Overlay" else "Grant Overlay Permission",
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
-                OutlinedButton(onClick = onLaunchCover, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onLaunchCover,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                ) {
                     Text("Preview Cover OS Now")
                 }
             }

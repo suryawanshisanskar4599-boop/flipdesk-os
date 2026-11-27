@@ -54,26 +54,30 @@ class CoverDisplayManager @Inject constructor(
     }
 
     /**
-     * Attempts to launch [intent] on the secondary cover display if available.
-     * Falls back to standard launch if ColorOS denies cross-display activity launch.
+     * Attempts to launch [intent] on the secondary cover display if [preferCoverDisplay] is true.
+     * Falls back cleanly to the default display so apps never get stuck or silently dropped.
      */
-    fun launchOnCoverOrFallback(intent: Intent): LaunchResult {
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val cover = getCoverDisplay()
-        if (cover != null) {
+    fun launchOnCoverOrFallback(intent: Intent, preferCoverDisplay: Boolean = true): LaunchResult {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        val cover = if (preferCoverDisplay) getCoverDisplay() else null
+        if (cover != null && cover.state == Display.STATE_ON) {
             try {
                 val options = ActivityOptions.makeBasic().apply {
                     launchDisplayId = cover.displayId
                 }
                 context.startActivity(intent, options.toBundle())
                 return LaunchResult.LAUNCHED_ON_COVER
-            } catch (_: SecurityException) {
-                // ColorOS restricts arbitrary non-system launchDisplayId; fall back below.
             } catch (_: Throwable) {
-                // Fallback to default display.
+                // Fall back to default display below
             }
         }
         return runCatching {
+            val defaultOpts = ActivityOptions.makeBasic().apply {
+                launchDisplayId = Display.DEFAULT_DISPLAY
+            }
+            context.startActivity(intent, defaultOpts.toBundle())
+            LaunchResult.LAUNCHED_ON_MAIN_FALLBACK
+        }.recoverCatching {
             context.startActivity(intent)
             LaunchResult.LAUNCHED_ON_MAIN_FALLBACK
         }.getOrElse {

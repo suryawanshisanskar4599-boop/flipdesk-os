@@ -25,16 +25,15 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,7 +44,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -91,50 +95,115 @@ fun CoverAppDrawer(
     val recentApps = remember(apps, preferences) {
         apps.filter { (preferences[it.packageName]?.lastLaunchedAt ?: 0L) > 0L && preferences[it.packageName]?.isHidden != true }
             .sortedByDescending { preferences[it.packageName]?.lastLaunchedAt ?: 0L }
-            .take(5)
+            .take(4)
     }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.background.copy(alpha = 0.96f))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Apps", color = colors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Rounded.Close, contentDescription = "Close drawer", tint = colors.textSecondary)
-            }
-        }
-
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            placeholder = { Text("Search apps…", fontSize = 11.sp) },
-            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(16.dp)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().height(48.dp)
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("All", "Favorites", "Hidden").forEach { tab ->
-                FilterChip(
-                    selected = filterMode == tab,
-                    onClick = { filterMode = tab },
-                    label = { Text(tab, fontSize = 10.sp) }
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xF0111318),
+                        Color(0xF50B0C10)
+                    )
                 )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Frosted Search Pill + Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x22FFFFFF))
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Rounded.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        if (query.isEmpty()) {
+                            Text("Search apps", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                        }
+                        BasicTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = Color.White, fontSize = 12.sp),
+                            cursorBrush = SolidColor(colors.accent),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x22FFFFFF))
+                        .clickable { onClose() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
             }
-        }
 
-        if (recentApps.isNotEmpty() && query.isBlank() && filterMode == "All") {
-            Text("Recent", color = colors.textMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(recentApps, key = { it.packageName }) { app ->
+            // Minimal Filter Pills
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("All", "Favorites", "Hidden").forEach { tab ->
+                    val selected = filterMode == tab
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(if (selected) colors.accent.copy(alpha = 0.28f) else Color(0x16FFFFFF))
+                            .clickable { filterMode = tab }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            tab,
+                            color = if (selected) Color.White else Color.White.copy(alpha = 0.65f),
+                            fontSize = 10.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            if (recentApps.isNotEmpty() && query.isBlank() && filterMode == "All") {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(recentApps, key = { "recent_${it.packageName}" }) { app ->
+                        AppGridTile(
+                            app = app,
+                            iconStyle = iconStyle,
+                            isFavorite = preferences[app.packageName]?.isFavorite == true,
+                            loadIcon = loadIcon,
+                            onClick = { onLaunchApp(app) },
+                            onLongClick = { selectedForDetails = app }
+                        )
+                    }
+                }
+            }
+
+            // ColorOS-inspired 3-column squircle app grid
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                contentPadding = PaddingValues(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(visibleApps, key = { it.packageName }) { app ->
                     AppGridTile(
                         app = app,
                         iconStyle = iconStyle,
@@ -144,25 +213,6 @@ fun CoverAppDrawer(
                         onLongClick = { selectedForDetails = app }
                     )
                 }
-            }
-        }
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            contentPadding = PaddingValues(vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            items(visibleApps, key = { it.packageName }) { app ->
-                AppGridTile(
-                    app = app,
-                    iconStyle = iconStyle,
-                    isFavorite = preferences[app.packageName]?.isFavorite == true,
-                    loadIcon = loadIcon,
-                    onClick = { onLaunchApp(app) },
-                    onLongClick = { selectedForDetails = app }
-                )
             }
         }
     }
@@ -190,7 +240,7 @@ fun CoverAppDrawer(
             },
             confirmButton = {
                 TextButton(onClick = { onLaunchApp(app); selectedForDetails = null }) {
-                    Text("Launch")
+                    Text("Open")
                 }
             },
             dismissButton = {
@@ -216,15 +266,8 @@ private fun AppGridTile(
     val bitmap = remember(app.packageName) { loadIcon(app.packageName)?.toBitmapOrNull() }
     val shape = when (iconStyle) {
         FluxIconStyle.CIRCLE -> CircleShape
-        FluxIconStyle.ROUNDED_SQUIRCLE -> RoundedCornerShape(14.dp)
-        FluxIconStyle.MINIMAL_OUTLINE -> RoundedCornerShape(10.dp)
-    }
-
-    val compatDotColor = when (app.compatibility) {
-        AppCoverCompatibility.COVER_READY -> colors.success
-        AppCoverCompatibility.MINI_APP_ELIGIBLE -> colors.accent
-        AppCoverCompatibility.MAIN_DISPLAY_FALLBACK -> colors.warning
-        AppCoverCompatibility.SYSTEM_RESTRICTED -> colors.error
+        FluxIconStyle.ROUNDED_SQUIRCLE -> RoundedCornerShape(16.dp)
+        FluxIconStyle.MINIMAL_OUTLINE -> RoundedCornerShape(12.dp)
     }
 
     Column(
@@ -232,40 +275,39 @@ private fun AppGridTile(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Box {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(54.dp)
                     .clip(shape)
-                    .background(colors.surfaceElevated),
+                    .background(Color(0x18FFFFFF)),
                 contentAlignment = Alignment.Center
             ) {
                 if (bitmap != null) {
-                    Image(bitmap = bitmap.asImageBitmap(), contentDescription = app.label, modifier = Modifier.size(34.dp).clip(shape))
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = app.label,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(54.dp).clip(shape)
+                    )
                 }
             }
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(compatDotColor)
-                    .align(Alignment.BottomEnd)
-            )
             if (isFavorite) {
                 Icon(
                     Icons.Rounded.Star,
                     contentDescription = null,
                     tint = colors.warning,
-                    modifier = Modifier.size(11.dp).align(Alignment.TopEnd)
+                    modifier = Modifier.size(12.dp).align(Alignment.TopEnd)
                 )
             }
         }
         Text(
             text = app.label,
-            color = colors.textPrimary,
-            fontSize = 10.sp,
+            color = Color.White.copy(alpha = 0.92f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Normal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
@@ -275,8 +317,8 @@ private fun AppGridTile(
 
 private fun Drawable.toBitmapOrNull(): Bitmap? = runCatching {
     if (this is BitmapDrawable && bitmap != null) return bitmap
-    val w = intrinsicWidth.coerceAtLeast(1)
-    val h = intrinsicHeight.coerceAtLeast(1)
+    val w = intrinsicWidth.coerceIn(1, 144)
+    val h = intrinsicHeight.coerceIn(1, 144)
     val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bmp)
     setBounds(0, 0, canvas.width, canvas.height)
